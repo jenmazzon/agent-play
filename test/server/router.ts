@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import type { Request, Response, NextFunction, Application } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import { createDidResolver, InMemoryAgenticProfileStore } from '@agentic-profile/common';
 import { createClientAgentSessionStore } from './store.js';
 
@@ -86,6 +88,60 @@ app.use('/mcp/presence', createPresenceRouter(sessionStore, didResolver));
 // Serve the web interface for non-API routes
 app.get('/', (_req: Request, res: Response) => {
     res.sendFile('index.html', { root: 'www' });
+});
+
+// Chat UI
+app.get('/chat', (_req: Request, res: Response) => {
+    res.sendFile('chat.html', { root: 'www' });
+});
+
+// Simple proxy endpoint that forwards a plain text message to the A2A hello handler
+app.post('/chat/send', async (req: Request, res: Response) => {
+    try {
+        const { text, contextId } = req.body || {};
+        if (!text) return res.status(400).json({ error: 'text is required' });
+
+        // Build a minimal A2A Message expected by the handler
+        const message = {
+            kind: 'message',
+            ...(contextId ? { contextId } : {}),
+            parts: [{ kind: 'text', text }],
+            metadata: {
+                // ensure there's an envelope with a recipient that has fragment 'venture'
+                envelope: { to: 'did:web:local#venture' }
+            }
+        };
+
+        // Construct a JSON-RPC request the handler expects
+        const jrpcRequest = {
+            jsonrpc: '2.0',
+            id: `chat-${Date.now()}`,
+            method: 'message/send',
+            params: { message }
+        } as any;
+
+        // Provide a minimal `session` object so handler can read `session.agentDid`
+        const context = { session: { agentDid: 'did:web:user#user' } } as any;
+
+        const result = await handleA2ALiteRequest(jrpcRequest, context);
+        if (result && 'result' in result) {
+            return res.json({ reply: (result as any).result });
+        }
+        if (result && 'error' in result) {
+            return res.status(500).json({ error: result.error });
+        }
+        return res.status(500).json({ error: 'Unknown handler response' });
+    } catch (err: any) {
+        const logsDir = path.join(process.cwd(), 'logs');
+        try { fs.mkdirSync(logsDir, { recursive: true }); } catch (_) {}
+        const logPath = path.join(logsDir, 'chat-errors.log');
+        const ts = new Date().toISOString();
+        const entry = `${ts} - /chat/send error:\n${err && err.stack ? err.stack : String(err)}\n\n`;
+        try { fs.appendFileSync(logPath, entry); } catch (e) { console.error('failed to write chat log', e); }
+        console.error('chat/send error', err);
+        // Return detailed error for debugging (includes stack)
+        res.status(500).json({ error: String(err), stack: err && err.stack ? err.stack : undefined });
+    }
 });
 
 // Serve static files from www directory (after specific routes)

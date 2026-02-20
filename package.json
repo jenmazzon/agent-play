@@ -55,7 +55,10 @@
         "@agentic-profile/common": "^0.7.0",
         "did-resolver": "^4.1.0",
         "loglevel": "^1.9.2",
-        "uuid": "^13.0.0"
+        "uuid": "^13.0.0",
+        "@opentelemetry/sdk-node": "^0.34.0",
+        "@opentelemetry/exporter-trace-otlp-http": "^0.34.0",
+        "@opentelemetry/auto-instrumentations-node": "^0.34.0"
     },
     "peerDependencies": {
         "@a2a-js/sdk": "^0.3.10",

@@ -75,16 +75,37 @@ export async function discoverSynergy({toAgentDid, fromAgentDid, userMessage}: D
             throw new Error("Model response does not contain text");
     }
     
-    // Add model response to context
+    // Add model response to context and persist
     context.messages.push({role: 'model', parts: [{ text: modelText }] });
-    
+    saveContextMap();
+
     return { text: modelText, metadata: { resolution: { like: true } }, contextId }
 }
 
-// Simple in-memory cache of chat contexts
+// Chat context store — persisted to disk so conversations survive server restarts
 
 interface ChatContext {
     messages: Content[];
 }
 
-const contextMap = new Map<string, ChatContext>();
+const CONTEXT_FILE = path.join(process.cwd(), 'logs', 'chat-contexts.json');
+
+function loadContextMap(): Map<string, ChatContext> {
+    try {
+        const raw = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf-8'));
+        return new Map(Object.entries(raw));
+    } catch {
+        return new Map();
+    }
+}
+
+function saveContextMap(): void {
+    try {
+        fs.mkdirSync(path.dirname(CONTEXT_FILE), { recursive: true });
+        fs.writeFileSync(CONTEXT_FILE, JSON.stringify(Object.fromEntries(contextMap), null, 2));
+    } catch (err) {
+        log.error('Failed to save chat contexts:', err);
+    }
+}
+
+const contextMap = loadContextMap();

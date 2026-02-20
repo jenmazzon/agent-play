@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Agent Chat</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; display:flex; flex-direction:column; height:100vh }
+      #chat { flex:1; padding: 16px; overflow:auto; background:#f7f7f7 }
+      .msg { margin:8px 0; }
+      .user { text-align:right }
+      .bot { text-align:left }
+      #controls { display:flex; padding:12px; border-top:1px solid #ddd }
+      #input { flex:1; padding:8px; font-size:16px }
+      #send { padding:8px 12px; margin-left:8px }
+    </style>
+  </head>
+  <body>
+    <div id="chat"></div>
+    <div id="controls">
+      <input id="input" placeholder="Type a message" />
+      <button id="send">Send</button>
+    </div>
+    <script src="/chat.js"></script>
+  </body>
+</html>

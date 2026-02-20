@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Initialize OpenTelemetry (sends spans to the OTLP HTTP endpoint)
+import '../../src/telemetry/index.js';
+
 import log from 'loglevel';
 log.setLevel('debug');
 

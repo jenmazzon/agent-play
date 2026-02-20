@@ -8,7 +8,8 @@ import { checkJrpcMethod } from '../../../src/a2a-service/lite.js';
 //import { pickRandomWelcomeMessage } from './random-hello.js';
 import { discoverSynergy } from './discover-synergy.js';
 
-export async function handleA2ALiteRequest(jrpcRequest: JsonRpcRequest, {session}: JsonRpcRequestContext): Promise<JsonRpcResponse> {
+export async function handleA2ALiteRequest(jrpcRequest: JsonRpcRequest, context: JsonRpcRequestContext = {} as any): Promise<JsonRpcResponse> {
+    const { session } = context as JsonRpcRequestContext;
 
     const error = checkJrpcMethod(jrpcRequest, ['message/send']);
     if (error)
