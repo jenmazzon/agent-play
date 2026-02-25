@@ -19,6 +19,7 @@ const GEN_AI_USAGE_OUTPUT_TOKENS = 'gen_ai.usage.output_tokens';
 
 const MODEL = 'gemini-2.5-flash-lite';
 const genAiTracer = trace.getTracer('@google/genai');
+const captureMessageContent = process.env.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT === 'true';
 
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -106,8 +107,12 @@ export async function discoverSynergy({toAgentDid, fromAgentDid, userMessage}: D
                     [GEN_AI_REQUEST_MODEL]: MODEL,
                     'conversation.id': contextId,
                 });
-                // Capture prompt content — current user turn (history captured via token counts)
-                span.addEvent('gen_ai.content.prompt', { 'gen_ai.prompt': userText });
+                // Capture prompt/completion content only when explicitly opted in (mirrors
+                // OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT convention from the
+                // opentelemetry-instrumentation-google-genai spec)
+                if (captureMessageContent) {
+                    span.addEvent('gen_ai.content.prompt', { 'gen_ai.prompt': userText });
+                }
                 try {
                     const res = await ai.models.generateContent(params);
                     const usage = res.usageMetadata;
@@ -117,11 +122,13 @@ export async function discoverSynergy({toAgentDid, fromAgentDid, userMessage}: D
                             [GEN_AI_USAGE_OUTPUT_TOKENS]: usage.candidatesTokenCount ?? 0,
                         });
                     }
-                    // Capture completion content (strip injected metadata JSON before recording)
-                    const rawText = res.text ?? '';
-                    const metaIdx = rawText.search(/\{\s*"metadata"\s*:/);
-                    const completionText = metaIdx >= 0 ? rawText.slice(0, metaIdx).trimEnd() : rawText;
-                    span.addEvent('gen_ai.content.completion', { 'gen_ai.completion': completionText });
+                    if (captureMessageContent) {
+                        // Strip injected metadata JSON before recording completion text
+                        const rawText = res.text ?? '';
+                        const metaIdx = rawText.search(/\{\s*"metadata"\s*:/);
+                        const completionText = metaIdx >= 0 ? rawText.slice(0, metaIdx).trimEnd() : rawText;
+                        span.addEvent('gen_ai.content.completion', { 'gen_ai.completion': completionText });
+                    }
                     span.setStatus({ code: SpanStatusCode.OK });
                     return res;
                 } catch (err: any) {
